@@ -1,0 +1,62 @@
+---
+title: "Machine Learning - Classification of weight lifting excercises"
+author: "gunbra"
+date: "March 21, 2015"
+output: html_document
+---
+
+```{r, echo = FALSE, results='hide'}
+library(ggplot2)
+library(caret)
+# html viewer:
+# http://htmlpreview.github.io/?https://github.com/gunbra32/MachLearn/blob/master/proj.html
+```
+This document describes the procedure I followed to predict the quality of barbell lifts using data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+To that end, two data sets, one for training and one for testing, with 152 predictors are loaded. 
+The training data set is then further separated into a subset applied in the training of the predictive model (called train_train herafter) and a much smaller subset for estimating the out-of-sample error (called train_test hereafter).
+```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=FALSE, results='hide'}
+
+testing <- read.csv("pml-testing.csv",na.strings = c("NA", "na", "NULL",
+                                                     "null", ""))
+training <- read.csv("pml-training.csv",na.strings = c("NA", "na", "NULL",
+                                                      "null", ""))
+itrain <- createDataPartition(training$classe,p=.9,list=FALSE)
+train_test <- training[-itrain,]
+train_train <- training[itrain,]
+```
+Before training a predictive model, the training data set is reduced by the majority of predictors. 
+In particular, all predictors with low variance, here setting freqCut to 70/30 and uniqueCut to 20, are discarded. Furthermore, all columns that only contain NAs and the first seven columns containing participants' names and time information are also eliminated. Eventually, 45 predictors are remaining. 
+```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=FALSE, results='hide'}
+ii <- nearZeroVar(train_train,freqCut=70/30,uniqueCut=20)
+t1 <- train_train[,-ii]
+t1 <- t1[,colSums(is.na(t1))<1]
+t1 <- t1[,c(-1,-2,-3,-4,-5,-6,-7)]
+```
+Then, a random forest model is trained to the training data applying a repeated K-fold cross-validation with k = 10 and 20 repetitions. Cross validation was, thus, already used during the training process.
+```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=TRUE}
+
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 20)
+fit <-train(classe ~ . ,data=t1, method="rf",ntree=50, trControl=ctrl)
+fit
+```
+The final model performed very well in predicitng the classification of the exercises in the data_set train_train. Accuracy and kappa were both above 0.99 indicating an almost perfect model performance. The out-of-sample error of the model is expected to be slightly lower than this value. 
+The final model has mtry=23 randomly selected predictors at each split.
+
+```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=TRUE}
+fit$finalModel
+```
+
+A closer inspection of the final model reveals that the missclassifiactions are distributed almost evenly among all five classes and that the error is smaller than 0.015 even for the worst case, i.e. for class B.
+
+```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=TRUE}
+ps <- predict(fit,train_test)
+confusionMatrix(ps,train_test$classe)
+```
+I then evaluate the performance of the model on the train_test data set, i.e. on data that was not used in the training process of the model. Against expectations, the accuracy on the test_train data is not lower than the accuracy on the train_train data. Likewise, all other error measures including the sensitivity, specifictiy and positive/negative predictive values are close to perfect. 
+```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=FALSE, results='hide'}
+varImp(fit,scale=TRUE)
+```
+The plot helps to identify importance of different predictors for the final random forest. Clearly, there is a relatively small number of preditors that are responsible for the largest decrease in the gini coefficient. In particular, the sensors on the dumbbell itself and the on the belt are most powerful in classifying the quality of the exercise. In contrast, the sensors on the arm and the forearm are associated to smaller decreases in the Gini index. 
+```{r, fig.height = 10.,fig.width = 8., echo = TRUE, cache=FALSE, results='hide'}
+varImpPlot(fit$finalModel)
+```
