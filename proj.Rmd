@@ -53,10 +53,8 @@ ps <- predict(fit,train_test)
 confusionMatrix(ps,train_test$classe)
 ```
 I then evaluate the performance of the model on the train_test data set, i.e. on data that was not used in the training process of the model. Against expectations, the accuracy on the test_train data is not lower than the accuracy on the train_train data. Likewise, all other error measures including the sensitivity, specifictiy and positive/negative predictive values are close to perfect. 
-```{r, fig.height = 2.,fig.width = 3., echo = TRUE, cache=FALSE, results='hide'}
-varImp(fit,scale=TRUE)
-```
 The plot helps to identify importance of different predictors for the final random forest. Clearly, there is a relatively small number of preditors that are responsible for the largest decrease in the gini coefficient. In particular, the sensors on the dumbbell itself and the on the belt are most powerful in classifying the quality of the exercise. In contrast, the sensors on the arm and the forearm are associated to smaller decreases in the Gini index. 
 ```{r, fig.height = 10.,fig.width = 8., echo = TRUE, cache=FALSE, results='hide'}
+varImp(fit,scale=TRUE)
 varImpPlot(fit$finalModel)
 ```
